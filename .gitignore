@@ -1,3 +1,5 @@
+*.o
+*.d
 /user.mak
 /sync.sh
 /.project

@@ -1,3 +1,11 @@
+
+/**
+* \file     main.c
+* \ingroup  g_applspec
+* \brief    Implementation of the FireStreamer application.
+* \author   Milos Ladicorbic
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -147,3 +155,4 @@ int main(int argc, char **argv) {
 
     return 0;
 }
+
