@@ -18,6 +18,8 @@
 #include <linux/videodev2.h>
 #include "libv4l2.h"
 
+#include "firestreamer.h"
+
 #define CLEAR(x) memset(&(x), 0, sizeof(x))
 
 struct buffer {
@@ -39,7 +41,7 @@ static void xioctl(int fh, int request, void *arg)
     }
 }
 
-int main(int argc, char **argv) {
+int main(void) {
 
     struct v4l2_format              fmt;
     struct v4l2_buffer              buf;
@@ -152,6 +154,8 @@ int main(int argc, char **argv) {
     for (i = 0; i < n_buffers; ++i)
             v4l2_munmap(buffers[i].start, buffers[i].length);
     v4l2_close(fd);
+
+    FireStreamer_initialize("rtsps://185.241.214.38:8322/project001/firestream1", "p001fsw1", "p001fsw1234", 640, 480);
 
     return 0;
 }
