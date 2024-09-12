@@ -66,11 +66,14 @@ int main(void) {
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
     fmt.fmt.pix.width       = 640;
     fmt.fmt.pix.height      = 480;
+//    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_SRGGB8;
+//    fmt.fmt.pix.field       = V4L2_FIELD_NONE;
     fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB24;
     fmt.fmt.pix.field       = V4L2_FIELD_INTERLACED;
+    fmt.fmt.pix.colorspace  = V4L2_COLORSPACE_RAW;
     xioctl(fd, VIDIOC_S_FMT, &fmt);
     if (fmt.fmt.pix.pixelformat != V4L2_PIX_FMT_RGB24) {
-        printf("Libv4l didn't accept RGB24 format. Can't proceed.\n");
+        printf("Libv4l didn't accept V4L2_PIX_FMT_SRGGB8 format. Can't proceed.\n");
         exit(EXIT_FAILURE);
     }
     if ((fmt.fmt.pix.width != 640) || (fmt.fmt.pix.height != 480)) {
@@ -114,7 +117,10 @@ int main(void) {
     type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
     xioctl(fd, VIDIOC_STREAMON, &type);
-    for (i = 0; i < 20; i++) {
+
+    FireStreamer_initialize("rtsps://185.241.214.38:8322/project001/firestream1", "p001fsw1", "p001fsw1234", 640, 480);
+
+    for (i = 0; i < 500; i++) {
         do {
                 FD_ZERO(&fds);
                 FD_SET(fd, &fds);
@@ -135,16 +141,31 @@ int main(void) {
         buf.memory = V4L2_MEMORY_MMAP;
         xioctl(fd, VIDIOC_DQBUF, &buf);
 
-        sprintf(out_name, "out%03d.ppm", i);
-        fout = fopen(out_name, "w");
-        if (!fout) {
-                perror("Cannot open image");
-                exit(EXIT_FAILURE);
-        }
-        fprintf(fout, "P6\n%d %d 255\n",
-                fmt.fmt.pix.width, fmt.fmt.pix.height);
-        fwrite(buffers[buf.index].start, buf.bytesused, 1, fout);
-        fclose(fout);
+        printf("Read Frame %dx%d - id_%d, size_%d bytes!\n", fmt.fmt.pix.width, fmt.fmt.pix.height, i, buf.bytesused);
+
+        /* write ppm image */
+//        sprintf(out_name, "out%03d.ppm", i);
+//        fout = fopen(out_name, "w");
+//        if (!fout) {
+//                perror("Cannot open image");
+//                exit(EXIT_FAILURE);
+//        }
+//        fprintf(fout, "P6\n%d %d 255\n",
+//                fmt.fmt.pix.width, fmt.fmt.pix.height);
+//        fwrite(buffers[buf.index].start, buf.bytesused, 1, fout);
+//        fclose(fout);
+
+        /* write RAW image */
+//        sprintf(out_name, "out%03d.raw", i);
+//        fout = fopen(out_name, "w");
+//        if (!fout) {
+//                perror("Cannot open image");
+//                exit(EXIT_FAILURE);
+//        }
+//        fwrite(buffers[buf.index].start, buf.bytesused, 1, fout);
+//        fclose(fout);
+
+        FireStreamer_pushFrame(buffers[buf.index].start, buf.bytesused);
 
         xioctl(fd, VIDIOC_QBUF, &buf);
     }
@@ -154,8 +175,6 @@ int main(void) {
     for (i = 0; i < n_buffers; ++i)
             v4l2_munmap(buffers[i].start, buffers[i].length);
     v4l2_close(fd);
-
-    FireStreamer_initialize("rtsps://185.241.214.38:8322/project001/firestream1", "p001fsw1", "p001fsw1234", 640, 480);
 
     return 0;
 }
