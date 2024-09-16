@@ -158,7 +158,10 @@ bool_t FireStreamer_initialize (char *url, char *username, char * password, uint
 
     gchar       *capsstr;
     GstCaps     *caps;
-    capsstr = g_strdup_printf("video/x-raw,width=640, height=480, framerate=30/1, format=(string)RGB, interlace-mode=(string)progressive, colorimetry=(string)1:1:5:1");                 //TODO format string
+
+    capsstr = g_strdup_printf("video/x-raw,width=%d, height=%d, framerate=30/1, format=(string)RGB,"
+                              "interlace-mode=(string)progressive, colorimetry=(string)1:1:5:1",
+                               pThis->width, pThis->height);
     caps = gst_caps_from_string(capsstr);
     g_object_set(G_OBJECT(pThis->sourceFilter), "caps", caps, NULL);     /* caps for sourceFilter */
     g_free(capsstr);
