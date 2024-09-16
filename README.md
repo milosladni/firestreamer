@@ -17,4 +17,7 @@ pkg-config --cflags --libs gstreamer-1.0
 https://isocpp.org/wiki/faq/mixing-c-and-cpp
 https://stackoverflow.com/questions/13694605/how-to-use-c-source-files-in-a-c-project
 
+## How to build test application on raspberry:
+$ cd  project
+$ ./build.sh
 
