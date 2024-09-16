@@ -21,7 +21,6 @@ CFLAGS+=-Isource
 
 # source/appl
 OBJECTS = source/appl/main.o \
-          source/appl/bsp.o \
           source/appl/firestreamer.o
 
 ifdef DEBUG
@@ -39,8 +38,6 @@ $(PROGRAM_NAME): $(OBJECTS)
 # source/appl
 main.o: main.c
 	source/appl/main.c
-bsp.o: bsp.c
-	source/appl/bsp.c
 firestreamer.o: firestreamer.c
 	source/appl/firestreamer.c
 
