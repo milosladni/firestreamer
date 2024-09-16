@@ -2,7 +2,6 @@
 *                                    FSTR - FireStreamer
 *                                    www.firestreamer.rs
 ***************************************************************************************************/
-
 #ifndef FIRE_STREAMER_H
 #define FIRE_STREAMER_H
 
@@ -12,6 +11,10 @@
 * \brief    API for the FireStreamer class.
 * \author   Milos Ladicorbic
 */
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdint.h>
 
@@ -30,3 +33,7 @@ uint32_t FireStreamer_pushFrame(void *pData, uint32_t size);
 
 
 #endif                                                                         /* FIRE_STREAMER_H */
+
+#ifdef __cplusplus
+}
+#endif
