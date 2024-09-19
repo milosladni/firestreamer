@@ -28,7 +28,7 @@ typedef enum {
 
 /* Fire Streamer - API */
 bool_t FireStreamer_initialize(char *url, char *username, char * password, uint32_t width,
-                               uint32_t height);
+                               uint32_t height, bool_t grayscale);
 uint32_t FireStreamer_pushFrame(void *pData, uint32_t size);
 
 

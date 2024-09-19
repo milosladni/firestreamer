@@ -121,7 +121,8 @@ int main(void) {
 
     xioctl(fd, VIDIOC_STREAMON, &type);
 
-    FireStreamer_initialize("rtsps://185.241.214.38:8322/project001/firestream1", "p001fsw1", "p001fsw1234", 384, 288);
+    FireStreamer_initialize("rtsps://185.241.214.38:8322/project001/firestream1", "p001fsw1",
+                            "p001fsw1234", 384, 288, TRUE);
 
     for (i = 0; i < 5000; i++) {
         do {

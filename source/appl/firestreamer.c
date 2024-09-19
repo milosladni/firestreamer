@@ -36,6 +36,7 @@ typedef struct FireStreamerTag {
     uint32_t        height;
     uint8_t         fps;
     uint8_t         quality;
+    bool_t          grayscale;                                      /* convert video to grayscale */
     /* stream parameters */
     char            url[CHAR_PARAM];
     char            username[CHAR_PARAM];
@@ -54,6 +55,10 @@ typedef struct FireStreamerTag {
     GstElement     *videoqueue;                                                    /* video queue */
     GstElement     *rtspClientSink;
     pthread_t       gstThreadId;                               /* ID returned by pthread_create() */
+    GstElement     *vcYuvToGs;
+    GstElement     *vcYuvToGsCaps;
+    GstElement     *vcGsToYuv;
+    GstElement     *vcGsToYuvCaps;
     /* helper */
     GstElement     *fakesink;                                     /* fake sink for testing stream */
     GstElement     *identity;                                           /* helper identity plugin */
@@ -70,7 +75,7 @@ static void FireStreamer_gst_free__(void);
 
 
 bool_t FireStreamer_initialize (char *url, char *username, char * password, uint32_t width,
-                                uint32_t height) {
+                                uint32_t height, bool_t grayscale) {
     static uint8_t nFireStreamers = 0;         /* number of FireStreamer objects allocated so far */
     unsigned int major, minor, micro, nano;
     bool_t success = TRUE;
@@ -98,6 +103,7 @@ bool_t FireStreamer_initialize (char *url, char *username, char * password, uint
     }
     pThis->width = width;
     pThis->height = height;
+    pThis->grayscale = grayscale;
 
     /* Initialize GStreamer */
     gst_init(NULL, NULL);
@@ -119,6 +125,12 @@ bool_t FireStreamer_initialize (char *url, char *username, char * password, uint
     pThis->encFilter = gst_element_factory_make("capsfilter", "encoderFilter");
     pThis->videoqueue = gst_element_factory_make("queue", "videoqueue");
     pThis->rtspClientSink = gst_element_factory_make("rtspclientsink", "videosink");
+    if (pThis->grayscale == TRUE) {
+        pThis->vcYuvToGs = gst_element_factory_make("videoconvert", "vcYuvToGs");
+        pThis->vcYuvToGsCaps = gst_element_factory_make("capsfilter", "vcYuvToGsCaps");
+        pThis->vcGsToYuv = gst_element_factory_make("videoconvert", "vcGsToYuv");
+        pThis->vcGsToYuvCaps = gst_element_factory_make("capsfilter", "vcGsToYuvCaps");
+    }
 
     if (!pThis->pipeline) {
         g_printerr ("ERROR: 'pipeline' main could be created.\n");
@@ -142,6 +154,10 @@ bool_t FireStreamer_initialize (char *url, char *username, char * password, uint
     }
     if (!pThis->rtspClientSink) {
         g_printerr ("ERROR: 'rtspclientsink' element could be created.\n");
+        success = FALSE;
+    }
+    if ((pThis->grayscale == TRUE) && (!pThis->vcYuvToGs || !pThis->vcGsToYuv)) {
+        g_printerr ("ERROR: 'videoconvert' element could be created.\n");
         success = FALSE;
     }
 
@@ -171,6 +187,18 @@ bool_t FireStreamer_initialize (char *url, char *username, char * password, uint
     g_object_set(G_OBJECT(pThis->encFilter), "caps", caps, NULL);       /* caps for h.264 encoder */
     g_free(capsstr);
     gst_caps_unref(caps);
+    if (pThis->grayscale) {
+        capsstr = g_strdup_printf("video/x-raw,format=(string)GRAY8");
+        caps = gst_caps_from_string(capsstr);
+        g_object_set(G_OBJECT(pThis->vcYuvToGsCaps), "caps", caps, NULL);
+        g_free(capsstr);
+        gst_caps_unref(caps);
+        capsstr = g_strdup_printf("video/x-raw,format=(string)YUY2");
+        caps = gst_caps_from_string(capsstr);
+        g_object_set(G_OBJECT(pThis->vcGsToYuvCaps), "caps", caps, NULL);
+        g_free(capsstr);
+        gst_caps_unref(caps);
+    }
 
     g_object_set(G_OBJECT(pThis->rtspClientSink), "location", pThis->url, NULL);
     g_object_set(G_OBJECT(pThis->rtspClientSink), "user-id", pThis->username, NULL);
@@ -179,15 +207,33 @@ bool_t FireStreamer_initialize (char *url, char *username, char * password, uint
     g_object_set(G_OBJECT(pThis->rtspClientSink), "tls-validation-flags", 0, NULL);
 
     /* add list of elements to a bin */
-    gst_bin_add_many(GST_BIN(pThis->pipeline), (GstElement*)pThis->appsrc,
-                     pThis->sourceFilter, pThis->h264Enc, pThis->encFilter, pThis->videoqueue,
-                     pThis->rtspClientSink, NULL);
+    if (pThis->grayscale) {
+        gst_bin_add_many(GST_BIN(pThis->pipeline), (GstElement*)pThis->appsrc,
+                         pThis->sourceFilter, pThis->vcYuvToGs, pThis->vcYuvToGsCaps,
+                         pThis->vcGsToYuv, pThis->vcGsToYuvCaps,
+                         pThis->h264Enc, pThis->encFilter, pThis->videoqueue,
+                         pThis->rtspClientSink, NULL);
+    } else {
+        gst_bin_add_many(GST_BIN(pThis->pipeline), (GstElement*)pThis->appsrc,
+                         pThis->sourceFilter, pThis->h264Enc, pThis->encFilter, pThis->videoqueue,
+                         pThis->rtspClientSink, NULL);
+    }
 
-    if(!gst_element_link_many((GstElement*)pThis->appsrc, pThis->sourceFilter, pThis->h264Enc,
-                               pThis->encFilter, pThis->videoqueue, pThis->rtspClientSink, NULL)) {
-        g_printerr ("ERROR: Elements could not be linked.\n");
-        FireStreamer_gst_free__();
-        return FALSE;
+    if (pThis->grayscale) {
+        if(!gst_element_link_many((GstElement*)pThis->appsrc, pThis->sourceFilter,
+                pThis->vcYuvToGs, pThis->vcYuvToGsCaps, pThis->vcGsToYuv, pThis->vcGsToYuvCaps,
+                pThis->h264Enc, pThis->encFilter, pThis->videoqueue, pThis->rtspClientSink, NULL)) {
+            g_printerr ("ERROR: Elements could not be linked.\n");
+            FireStreamer_gst_free__();
+            return FALSE;
+        }
+    } else {
+        if(!gst_element_link_many((GstElement*)pThis->appsrc, pThis->sourceFilter, pThis->h264Enc,
+                                   pThis->encFilter, pThis->videoqueue, pThis->rtspClientSink, NULL)) {
+            g_printerr ("ERROR: Elements could not be linked.\n");
+            FireStreamer_gst_free__();
+            return FALSE;
+        }
     }
 
     /* add a BUS message handler to HTTP pipeline */
