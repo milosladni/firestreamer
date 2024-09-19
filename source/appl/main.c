@@ -64,19 +64,22 @@ int main(void) {
 
     CLEAR(fmt);
     fmt.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-    fmt.fmt.pix.width       = 640;
-    fmt.fmt.pix.height      = 480;
-//    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_SRGGB8;
-//    fmt.fmt.pix.field       = V4L2_FIELD_NONE;
-    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB24;
-    fmt.fmt.pix.field       = V4L2_FIELD_INTERLACED;
+//    fmt.fmt.pix.width       = 384;
+//    fmt.fmt.pix.height      = 288;
+//    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_RGB24;
+//    fmt.fmt.pix.field       = V4L2_FIELD_INTERLACED;
+    fmt.fmt.pix.width       = 768;
+    fmt.fmt.pix.height      = 288;
+    fmt.fmt.pix.pixelformat = V4L2_PIX_FMT_SRGGB8;
+    fmt.fmt.pix.field       = V4L2_FIELD_NONE;
+
     fmt.fmt.pix.colorspace  = V4L2_COLORSPACE_RAW;
     xioctl(fd, VIDIOC_S_FMT, &fmt);
-    if (fmt.fmt.pix.pixelformat != V4L2_PIX_FMT_RGB24) {
+    if (fmt.fmt.pix.pixelformat != V4L2_PIX_FMT_SRGGB8) {
         printf("Libv4l didn't accept V4L2_PIX_FMT_SRGGB8 format. Can't proceed.\n");
         exit(EXIT_FAILURE);
     }
-    if ((fmt.fmt.pix.width != 640) || (fmt.fmt.pix.height != 480)) {
+    if ((fmt.fmt.pix.width != 384) || (fmt.fmt.pix.height != 288)) {
         printf("Warning: driver is sending image at %dx%d\n", fmt.fmt.pix.width, fmt.fmt.pix.height);
     }
 
@@ -118,9 +121,9 @@ int main(void) {
 
     xioctl(fd, VIDIOC_STREAMON, &type);
 
-    FireStreamer_initialize("rtsps://185.241.214.38:8322/project001/firestream1", "p001fsw1", "p001fsw1234", 640, 480);
+    FireStreamer_initialize("rtsps://185.241.214.38:8322/project001/firestream1", "p001fsw1", "p001fsw1234", 384, 288);
 
-    for (i = 0; i < 500; i++) {
+    for (i = 0; i < 5000; i++) {
         do {
                 FD_ZERO(&fds);
                 FD_SET(fd, &fds);
@@ -141,7 +144,9 @@ int main(void) {
         buf.memory = V4L2_MEMORY_MMAP;
         xioctl(fd, VIDIOC_DQBUF, &buf);
 
-        printf("Read Frame %dx%d - id_%d, size_%d bytes!\n", fmt.fmt.pix.width, fmt.fmt.pix.height, i, buf.bytesused);
+        if (i % 25 == 0) {
+            printf("Read Frame %dx%d - id_%d, size_%d bytes!\n", fmt.fmt.pix.width, fmt.fmt.pix.height, i, buf.bytesused);
+        }
 
         /* write ppm image */
 //        sprintf(out_name, "out%03d.ppm", i);
