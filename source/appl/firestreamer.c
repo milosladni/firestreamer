@@ -249,6 +249,8 @@ bool_t FireStreamer_initialize (char *url, char *username, char * password, uint
          return FALSE;
     }
     nFireStreamers++;                                 /* number of allocated FireStreamer objects */
+
+    g_usleep(1000000);         /* give a chance to gstreamer start pipeline before we push frames */
     return TRUE;
 }
 
