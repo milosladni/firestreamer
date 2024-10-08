@@ -59,6 +59,7 @@ typedef struct FireStreamerTag {
     GstElement     *vcYuvToGsCaps;
     GstElement     *vcGsToYuv;
     GstElement     *vcGsToYuvCaps;
+    bool_t          feedData;                 /* feed pipeline with input data or skip input data */
     /* helper */
     GstElement     *fakesink;                                     /* fake sink for testing stream */
     GstElement     *identity;                                           /* helper identity plugin */
@@ -71,6 +72,8 @@ FireStreamer_t *pThis = &l_fireSteramer;                                 /* glob
 /* private function declarations */
 static gboolean FireStreamer_gst_busCall__(GstBus *bus, GstMessage *msg, FireStreamer_t *pPipeline);
 static void* FireStreamer_gst_mainLoop__(void *pArgument);
+static void FireStreamer_gst_startFeeding__(void);
+static void FireStreamer_gst_stopFeeding__(void);
 static void FireStreamer_gst_free__(void);
 
 
@@ -169,8 +172,9 @@ bool_t FireStreamer_initialize (char *url, char *username, char * password, uint
 
     /* set element properties */
     g_object_set(G_OBJECT(pThis->appsrc), "do-timestamp", TRUE, NULL);
-    g_object_set(G_OBJECT(pThis->appsrc), "is_live", TRUE, NULL);
+    g_object_set(G_OBJECT(pThis->appsrc), "is-live", TRUE, NULL);
     g_object_set(G_OBJECT(pThis->appsrc), "format", GST_FORMAT_TIME, NULL);
+    g_object_set(G_OBJECT(pThis->rtspClientSink), "latency", 1000, NULL);
 
     gchar       *capsstr;
     GstCaps     *caps;
@@ -241,6 +245,10 @@ bool_t FireStreamer_initialize (char *url, char *username, char * password, uint
     pThis->bus_watch_id = gst_bus_add_watch (pThis->bus, (GstBusFunc)FireStreamer_gst_busCall__,
                                              (gpointer)pThis);
 
+    /* configure the appsrc, we will push data into the appsrc from the FireStreamer_pushFrame(). */
+    g_signal_connect (pThis->appsrc, "need-data", G_CALLBACK (FireStreamer_gst_startFeeding__), pThis);
+    g_signal_connect (pThis->appsrc, "enough-data", G_CALLBACK (FireStreamer_gst_stopFeeding__), pThis);
+
     /* start streamer */
     gstRet = gst_element_set_state ((GstElement*)pThis->pipeline, GST_STATE_PLAYING);
     if (gstRet == GST_STATE_CHANGE_FAILURE) {
@@ -262,13 +270,15 @@ uint32_t FireStreamer_pushFrame (void *pData, uint32_t size) {
 
     assert(pThis->appsrc != NULL);
 
-    buffer = gst_buffer_new_and_alloc(size);
-    nWritten = gst_buffer_fill(buffer, 0, pData, size);
+    if (pThis->feedData == TRUE) {
+        buffer = gst_buffer_new_and_alloc(size);
+        nWritten = gst_buffer_fill(buffer, 0, pData, size);
 
-    /* push data to appsrc */
-    ret = gst_app_src_push_buffer(GST_APP_SRC(pThis->appsrc), buffer);
-    if (ret != GST_FLOW_OK) {
-        g_printerr ("ERROR: -EINVAL GST_FLOW!\n");
+        /* push data to appsrc */
+        ret = gst_app_src_push_buffer(GST_APP_SRC(pThis->appsrc), buffer);
+        if (ret != GST_FLOW_OK) {
+            g_printerr ("ERROR: -EINVAL GST_FLOW!\n");
+        }
     }
 
     return nWritten;
@@ -383,6 +393,21 @@ static void* FireStreamer_gst_mainLoop__ (void *pArgument) {
 
     printf("%s EXIT\n", __func__);                                    /* this should never happen */
     return (void*) 0;
+}
+
+static void FireStreamer_gst_startFeeding__ (void) {
+    /* set feedData to true */                                      //todo add critical section here
+    if (pThis->feedData != TRUE) {
+        printf("start feeding!\n");
+        pThis->feedData = TRUE;
+    }
+}
+
+static void FireStreamer_gst_stopFeeding__ (void) {
+    if (pThis->feedData != FALSE) {
+        printf("stop feeding!\n");
+        pThis->feedData = FALSE;
+    }
 }
 
 static void FireStreamer_gst_free__ (void) {
